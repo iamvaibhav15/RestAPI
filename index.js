@@ -1,13 +1,18 @@
-const express = require("express")
-const users =  require("./MOCK_DATA.json")
-const app = express()
-port = 5000
+const fs = require("fs");
+
+const express = require("express");
+let users =  require("./MOCK_DATA.json");
+const app = express();
+port = 5000;
+
+// Middleware - Plugins
+app.use(express.urlencoded({extended:false}));
 
 // Route to get all users
-app.get("/api/users",(req,res)=>{
+app.get("/api/users/",(req,res)=>{
     return res.json(users);
 });
-app.get("/users",(req,res)=>{
+app.get("/users/",(req,res)=>{
     const html = `<ul>
         ${users.map((user)=>{
            return `<li> User${user.id}
@@ -33,7 +38,7 @@ app.get("/users",(req,res)=>{
 //     const user = users.find((user)=> user.id === id );
 //     return res.json(user);
 // });
-app.get('/users/:id',(req,res)=>{
+app.get('/users/:id/',(req,res)=>{
     const id = Number(req.params.id)
     const user = users.find((user)=> user.id == id)
     const html = `<ul>
@@ -53,7 +58,7 @@ app.get('/users/:id',(req,res)=>{
 
 
 // Creating the merged routes for different methods having similar routes
-app.route("/api/users/:id")
+app.route("/api/users/:id/")
 .get((req,res)=>{
     const id =  Number(req.params.id);
     const user = users.find((user)=> user.id === id );
@@ -61,17 +66,43 @@ app.route("/api/users/:id")
 })
 .patch((req,res)=>{
     // Update a specified User
-    return res.json({status:"Pending"})
+    const id = Number(req.params.id)
+    const user = users.find((user)=> user.id === id );
+    if (!user) {
+        return res.status(404).json({ error: "User Not Found" });
+    }
+    const body = req.body;
+    user = { ...user, ...body };
+    users = users.map(u => (u.id === id ? user : u));
+    fs.writeFile("./MOCK_DATA.json", JSON.stringify(users, null, 2), (err) => {
+        if (err) {
+            return res.status(500).json({ error: "Error writing to file" });
+        }
+        res.json({ status: "Success", message: `User ID ${id} updated successfully`, user });
+    });
+
 })
 .delete((req,res)=>{
-    // Delete a specified User
-    return res.json({status:"Pending"})
+    // Delete a specified User -----> DONE 
+    const id = Number(req.params.id)
+    const user = users.find((user)=> user.id === id );
+    if (!user ){
+        return res.status(404).json({ error: "User Not Found" });
+    }
+    users = users.filter(user => user.id !== id);
+    fs.writeFile("./MOCK_DATA.json",JSON.stringify(users),(err,data)=>{
+        return res.json({ status: "Success", message: `User ID ${id} deleted successfully` });
+    });
 });
 
-app.put("/api/users",(req,res)=>{
+app.post("/api/users/",(req,res)=>{
     // Create a new User
-    return res.json({status:"Pending"})
-})
+    const body = req.body;
+    users.push({id:users.length +1,...body})
+    fs.writeFile("./MOCK_DATA.json",JSON.stringify(users),(err,data)=>{
+        return res.json({status:"Success",id:users.length});
+    });
+});
 
 
 
@@ -80,4 +111,4 @@ app.put("/api/users",(req,res)=>{
 
 app.listen(port,()=>{
     console.log(`Server Working on http://localhost:${port}`);
-})
+});
